@@ -1,0 +1,9 @@
+student,weekday,start,end
+Ada,Monday,10:00,11:30
+Ada,Monday,14:00,15:30
+Ada,Tuesday,09:00,12:00
+Bob,Monday,09:00,10:00
+Bob,Monday,13:00,16:00
+Bob,Wednesday,11:00,14:00
+Chen,Monday,08:00,17:00
+Chen,Tuesday,08:00,17:00
