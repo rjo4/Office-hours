@@ -5,6 +5,7 @@ from facultytime.scheduling import (
     merge_intervals,
     parse_hhmm,
     parse_weekday,
+    rank_office_hour_slots_decision_tree,
     rank_office_hour_slots,
     student_free_for_slot,
 )
@@ -59,3 +60,20 @@ def test_parse_hhmm() -> None:
 def test_student_free() -> None:
     assert student_free_for_slot([(100, 200)], (200, 300)) is True
     assert student_free_for_slot([(100, 200)], (150, 250)) is False
+
+
+def test_decision_tree_ranking_runs() -> None:
+    schedules = {
+        "s1": {0: [(9 * 60, 15 * 60)]},
+        "s2": {0: [(16 * 60, 17 * 60)]},
+    }
+    top = rank_office_hour_slots_decision_tree(
+        schedules,
+        day_start_min=9 * 60,
+        day_end_min=17 * 60,
+        slot_duration_min=60,
+        step_min=60,
+        top_n=10,
+    )
+    assert len(top) > 0
+    assert top[0].coverage >= 0

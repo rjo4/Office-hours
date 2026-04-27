@@ -11,7 +11,7 @@ from facultytime.scheduling import (
     WEEKDAY_NAMES,
     format_minutes,
     parse_hhmm,
-    rank_office_hour_slots,
+    rank_office_hour_slots_decision_tree,
 )
 
 
@@ -157,7 +157,7 @@ class FacultyTimeApp(tk.Tk):
 
         self._tree.delete(*self._tree.get_children())
         try:
-            ranked = rank_office_hour_slots(
+            ranked = rank_office_hour_slots_decision_tree(
                 self._schedules,
                 day_start_min=day_start,
                 day_end_min=day_end,
@@ -184,7 +184,7 @@ class FacultyTimeApp(tk.Tk):
                 ),
             )
         self._status.set(
-            f"Top {len(ranked)} slot(s) by student coverage (of {total} students)."
+            f"Top {len(ranked)} slot(s) by decision-tree estimated coverage (of {total} students)."
         )
 
 
