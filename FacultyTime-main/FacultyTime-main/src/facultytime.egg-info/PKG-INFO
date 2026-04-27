@@ -1,3 +1,15 @@
+Metadata-Version: 2.4
+Name: facultytime
+Version: 0.1.0
+Summary: Desktop helper to suggest office-hour times from student availability (busy blocks).
+Author: FacultyTime contributors
+License: MIT
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: scikit-learn
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+
 # FacultyTime
 
 Desktop helper for faculty to **suggest office-hour time windows** that fit the most students, using each student’s **busy** (in-class) blocks from a CSV. The graphical interface uses **Tkinter**, and slot ranking uses a **Decision Tree machine learning model**.

@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+src/facultytime/__init__.py
+src/facultytime/__main__.py
+src/facultytime/app.py
+src/facultytime/csv_io.py
+src/facultytime/scheduling.py
+src/facultytime.egg-info/PKG-INFO
+src/facultytime.egg-info/SOURCES.txt
+src/facultytime.egg-info/dependency_links.txt
+src/facultytime.egg-info/entry_points.txt
+src/facultytime.egg-info/requires.txt
+src/facultytime.egg-info/top_level.txt
+tests/test_csv_io.py
+tests/test_scheduling.py

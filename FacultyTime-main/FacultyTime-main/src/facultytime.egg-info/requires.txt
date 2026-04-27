@@ -1,0 +1,4 @@
+scikit-learn
+
+[dev]
+pytest>=7.0
