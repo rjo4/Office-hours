@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
@@ -19,17 +20,15 @@ from facultytime.scheduling import (
 class FacultyTimeApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
-        self.title("FacultyTime — office hour suggestions")
-        self.geometry("760x720")
-        self.minsize(700, 620)
+        self.title("FacultyTime")
+        self.geometry("800x760")
+        self.minsize(720, 640)
+        self._theme_mode = "light"
         self._csv_path: Path | None = None
         self._schedules: dict | None = None
 
-        # --- UI MODERNIZATION ---
         style = ttk.Style(self)
-        style.theme_use('clam')
-        style.configure('.', font=('Segoe UI', 10))
-        self._set_theme("light")  # Load light mode by default
+        style.theme_use("clam")
 
         menubar = tk.Menu(self)
         file_menu = tk.Menu(menubar, tearoff=0)
@@ -38,7 +37,6 @@ class FacultyTimeApp(tk.Tk):
         file_menu.add_command(label="Quit", command=self.destroy)
         menubar.add_cascade(label="File", menu=file_menu)
 
-        # Theme Menu (NEW)
         theme_menu = tk.Menu(menubar, tearoff=0)
         theme_menu.add_command(label="Light", command=lambda: self._set_theme("light"))
         theme_menu.add_command(label="Dark", command=lambda: self._set_theme("dark"))
@@ -46,57 +44,78 @@ class FacultyTimeApp(tk.Tk):
 
         self.config(menu=menubar)
 
-        top = ttk.Frame(self, style="App.TFrame", padding=(16, 14, 16, 8))
-        top.pack(fill=tk.X)
+        main = ttk.Frame(self, style="App.TFrame")
+        main.pack(fill=tk.BOTH, expand=True)
 
-        header = ttk.Frame(top, style="App.TFrame")
-        header.pack(fill=tk.X)
+        head = ttk.Frame(main, style="App.TFrame", padding=(28, 24, 28, 12))
+        head.pack(fill=tk.X)
 
+        head_top = ttk.Frame(head, style="App.TFrame")
+        head_top.pack(fill=tk.X)
+
+        brand = ttk.Frame(head_top, style="App.TFrame")
+        brand.pack(side=tk.LEFT, fill=tk.Y)
+        ttk.Label(brand, text="SCHEDULING", style="Eyebrow.TLabel").pack(anchor=tk.W)
+        ttk.Label(brand, text="FacultyTime", style="Hero.TLabel").pack(anchor=tk.W, pady=(2, 0))
         ttk.Label(
-            header,
-            text="FacultyTime",
-            style="Title.TLabel"
-        ).pack(side=tk.LEFT)
+            brand,
+            text="Find office-hour windows where the most students are free.",
+            style="Tagline.TLabel",
+        ).pack(anchor=tk.W, pady=(6, 0))
 
+        btn_head = ttk.Frame(head_top, style="App.TFrame")
+        btn_head.pack(side=tk.RIGHT, anchor=tk.N, pady=(8, 0))
         ttk.Button(
-            header,
-            text="Open CSV…",
-            command=self._open_csv
+            btn_head,
+            text="Open CSV",
+            command=self._open_csv,
+            style="Ghost.TButton",
         ).pack(side=tk.RIGHT)
 
-        self._path_var = tk.StringVar(value="No CSV loaded")
-        ttk.Label(
-            top,
-            textvariable=self._path_var,
-            style="Subtle.TLabel"
-        ).pack(anchor=tk.W, pady=(4, 10))
+        ttk.Separator(main, orient=tk.HORIZONTAL).pack(fill=tk.X, padx=28, pady=(0, 4))
 
-        opts = ttk.LabelFrame(top, text="Search settings", padding=12)
-        opts.pack(fill=tk.X)
+        path_row = ttk.Frame(main, style="App.TFrame", padding=(28, 0, 28, 16))
+        path_row.pack(fill=tk.X)
+        self._path_var = tk.StringVar(value="No file loaded")
+        ttk.Label(path_row, textvariable=self._path_var, style="Meta.TLabel").pack(
+            anchor=tk.W
+        )
 
-        ttk.Label(opts, text="Slot length (minutes):").grid(row=0, column=0, sticky=tk.W)
+        card = ttk.Frame(main, style="Card.TFrame", padding=20)
+        card.pack(fill=tk.X, padx=28, pady=(0, 12))
+
+        ttk.Label(card, text="Parameters", style="Section.TLabel").pack(anchor=tk.W, pady=(0, 14))
+
+        grid = ttk.Frame(card, style="Card.TFrame")
+        grid.pack(fill=tk.X)
+
+        ttk.Label(grid, text="Slot length", style="Field.TLabel").grid(row=0, column=0, sticky=tk.W)
         self._duration = tk.StringVar(value="60")
         dur = ttk.Combobox(
-            opts,
+            grid,
             textvariable=self._duration,
             values=("30", "45", "60", "90"),
-            width=6,
+            width=7,
             state="readonly",
         )
         dur.grid(row=0, column=1, padx=(4, 16), sticky=tk.W)
 
-        ttk.Label(opts, text="Search step (minutes):").grid(row=0, column=2, sticky=tk.W)
+        ttk.Label(grid, text="Search step", style="Field.TLabel").grid(row=0, column=2, sticky=tk.W)
         self._step = tk.StringVar(value="30")
         step = ttk.Combobox(
-            opts,
+            grid,
             textvariable=self._step,
             values=("15", "30", "60"),
-            width=6,
+            width=7,
             state="readonly",
         )
         step.grid(row=0, column=3, padx=(4, 16), sticky=tk.W)
 
-        ttk.Label(opts, text="Day window:").grid(row=1, column=0, sticky=tk.W, pady=(6, 0))
+        ttk.Label(grid, text="Day window", style="Field.TLabel").grid(
+            row=1, column=0, sticky=tk.W, pady=(12, 0)
+        )
+        win = ttk.Frame(grid, style="Card.TFrame")
+        win.grid(row=1, column=1, columnspan=3, sticky=tk.W, pady=(12, 0), padx=(10, 0))
         self._day_start = tk.StringVar(value="09:00")
         self._day_end = tk.StringVar(value="17:00")
         ttk.Entry(opts, textvariable=self._day_start, width=8).grid(
@@ -111,6 +130,15 @@ class FacultyTimeApp(tk.Tk):
         ttk.Spinbox(opts, from_=5, to=100, textvariable=self._top_n, width=5).grid(
             row=1, column=5, pady=(6, 0), sticky=tk.W
         )
+        self._top_n = tk.StringVar(value="25")
+        ttk.Spinbox(
+            grid,
+            from_=5,
+            to=100,
+            textvariable=self._top_n,
+            width=5,
+            style="Clean.TSpinbox",
+        ).grid(row=1, column=5, sticky=tk.W, pady=(12, 0), padx=(10, 0))
 
         btn_row = ttk.Frame(top, style="App.TFrame")
         btn_row.pack(fill=tk.X, pady=(8, 0))
