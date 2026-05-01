@@ -6,14 +6,13 @@ import ctypes
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from pathlib import Path
-import ctypes
 
 from facultytime.csv_io import load_busy_csv
 from facultytime.scheduling import (
     WEEKDAY_NAMES,
     format_minutes,
     parse_hhmm,
-    rank_office_hour_slots,
+    rank_office_hour_slots_decision_tree,
 )
 
 
@@ -98,7 +97,7 @@ class FacultyTimeApp(tk.Tk):
             width=7,
             state="readonly",
         )
-        dur.grid(row=0, column=1, padx=(4, 16), sticky=tk.W)
+        dur.grid(row=0, column=1, padx=(10, 28), sticky=tk.W)
 
         ttk.Label(grid, text="Search step", style="Field.TLabel").grid(row=0, column=2, sticky=tk.W)
         self._step = tk.StringVar(value="30")
@@ -109,7 +108,7 @@ class FacultyTimeApp(tk.Tk):
             width=7,
             state="readonly",
         )
-        step.grid(row=0, column=3, padx=(4, 16), sticky=tk.W)
+        step.grid(row=0, column=3, padx=(10, 0), sticky=tk.W)
 
         ttk.Label(grid, text="Day window", style="Field.TLabel").grid(
             row=1, column=0, sticky=tk.W, pady=(12, 0)
@@ -118,17 +117,14 @@ class FacultyTimeApp(tk.Tk):
         win.grid(row=1, column=1, columnspan=3, sticky=tk.W, pady=(12, 0), padx=(10, 0))
         self._day_start = tk.StringVar(value="09:00")
         self._day_end = tk.StringVar(value="17:00")
-        ttk.Entry(opts, textvariable=self._day_start, width=8).grid(
-            row=1, column=1, padx=(4, 16), pady=(6, 0), sticky=tk.W
+        ttk.Entry(win, textvariable=self._day_start, width=7, style="Clean.TEntry").pack(
+            side=tk.LEFT
         )
-        ttk.Label(opts, text="–").grid(row=1, column=2, pady=(6, 0))
-        ttk.Entry(opts, textvariable=self._day_end, width=8).grid(
-            row=1, column=3, padx=(4, 16), pady=(6, 0), sticky=tk.W
-        )
-        ttk.Label(opts, text="Show top:").grid(row=1, column=4, sticky=tk.W, padx=(16, 0), pady=(6, 0))
-        self._top_n = tk.StringVar(value="25")
-        ttk.Spinbox(opts, from_=5, to=100, textvariable=self._top_n, width=5).grid(
-            row=1, column=5, pady=(6, 0), sticky=tk.W
+        ttk.Label(win, text="—", style="Dim.TLabel").pack(side=tk.LEFT, padx=8)
+        ttk.Entry(win, textvariable=self._day_end, width=7, style="Clean.TEntry").pack(side=tk.LEFT)
+
+        ttk.Label(grid, text="Show top", style="Field.TLabel").grid(
+            row=1, column=4, sticky=tk.W, padx=(24, 0), pady=(12, 0)
         )
         self._top_n = tk.StringVar(value="25")
         ttk.Spinbox(
@@ -140,41 +136,53 @@ class FacultyTimeApp(tk.Tk):
             style="Clean.TSpinbox",
         ).grid(row=1, column=5, sticky=tk.W, pady=(12, 0), padx=(10, 0))
 
-        btn_row = ttk.Frame(top, style="App.TFrame")
-        btn_row.pack(fill=tk.X, pady=(8, 0))
+        action = ttk.Frame(main, style="App.TFrame", padding=(28, 4, 28, 12))
+        action.pack(fill=tk.X)
         ttk.Button(
-            btn_row,
+            action,
             text="Suggest office hours",
             command=self._run_suggest,
-            style="Primary.TButton"
-        ).pack(side=tk.LEFT)
+            style="Primary.TButton",
+        ).pack(anchor=tk.W)
 
-        table_frame = ttk.Frame(self, padding=(8, 8, 8, 8))
-        table_frame.pack(fill=tk.X)
+        table_outer = ttk.Frame(main, style="App.TFrame", padding=(28, 0, 28, 20))
+        table_outer.pack(fill=tk.BOTH, expand=True)
+
+        table_card = ttk.Frame(table_outer, style="Card.TFrame", padding=(0, 0, 0, 0))
+        table_card.pack(fill=tk.BOTH, expand=True)
+
+        table_head = ttk.Frame(table_card, style="Card.TFrame", padding=(16, 14, 16, 8))
+        table_head.pack(fill=tk.X)
+        ttk.Label(table_head, text="Ranked slots", style="Section.TLabel").pack(side=tk.LEFT)
+
+        table_frame = ttk.Frame(table_card, style="Card.TFrame", padding=(0, 0, 8, 12))
+        table_frame.pack(fill=tk.BOTH, expand=True)
 
         cols = ("rank", "coverage", "day", "start", "end")
         self._tree = ttk.Treeview(
             table_frame,
             columns=cols,
             show="headings",
-            height=12,
+            height=16,
             selectmode=tk.BROWSE,
         )
         self._tree.heading("rank", text="#")
-        self._tree.heading("coverage", text="Students free")
+        self._tree.heading("coverage", text="Free")
         self._tree.heading("day", text="Day", anchor=tk.CENTER)
         self._tree.heading("start", text="Start")
         self._tree.heading("end", text="End")
-        self._tree.column("rank", width=40, anchor=tk.CENTER)
-        self._tree.column("coverage", width=100, anchor=tk.CENTER)
-        self._tree.column("day", width=100, anchor=tk.CENTER)
-        self._tree.column("start", width=80, anchor=tk.CENTER)
-        self._tree.column("end", width=80, anchor=tk.CENTER)
-        scroll = ttk.Scrollbar(table_frame, orient=tk.VERTICAL, command=self._tree.yview)
+        self._tree.column("rank", width=44, anchor=tk.CENTER)
+        self._tree.column("coverage", width=110, anchor=tk.CENTER)
+        self._tree.column("day", width=108, anchor=tk.CENTER)
+        self._tree.column("start", width=88, anchor=tk.CENTER)
+        self._tree.column("end", width=88, anchor=tk.CENTER)
+        scroll = ttk.Scrollbar(
+            table_frame,
+            orient=tk.VERTICAL,
+            command=self._tree.yview,
+        )
         self._tree.configure(yscrollcommand=scroll.set)
-        self._tree.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        self._tree.tag_configure("oddrow", background="#ffffff")
-        self._tree.tag_configure("evenrow", background="#f9fafb")
+        self._tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(12, 0))
         scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
         self._status = tk.StringVar(value="Load a CSV of student busy times.")
@@ -185,38 +193,53 @@ class FacultyTimeApp(tk.Tk):
             anchor=tk.W,
         ).pack(fill=tk.X, side=tk.BOTTOM)
 
+        self._set_theme("light")
+
     def _set_theme(self, mode: str) -> None:
+        self._theme_mode = mode
         style = ttk.Style(self)
 
         if mode == "dark":
-            bg = "#1f2328"
-            card_bg = "#2b3036"
-            fg = "#f2f2f2"
-            muted = "#b8c0cc"
-            field_bg = "#363c44"
-            tree_head = "#3c444f"
-            row_odd = "#2b3036"
-            row_even = "#252a30"
-            select_bg = "#2563eb"
-            button_bg = "#2563eb"
-            button_active = "#1d4ed8"
+            bg = "#0c0a09"
+            surface = "#1c1917"
+            surface_2 = "#292524"
+            hairline = "#44403c"
+            fg = "#fafaf9"
+            muted = "#a8a29e"
+            dim = "#78716c"
+            field_bg = "#292524"
+            tree_head = "#292524"
+            row_a = "#1c1917"
+            row_b = "#18181b"
+            select_bg = "#e7e5e4"
+            select_fg = "#1c1917"
+            primary_bg = "#fafaf9"
+            primary_fg = "#0c0a09"
+            primary_hover = "#f5f5f4"
+            ghost_hi = "#292524"
         else:
-            bg = "#f3f4f6"
-            card_bg = "#ffffff"
-            fg = "#111827"
-            muted = "#6b7280"
-            field_bg = "#ffffff"
-            tree_head = "#e5e7eb"
-            row_odd = "#ffffff"
-            row_even = "#f9fafb"
-            select_bg = "#2563eb"
-            button_bg = "#2563eb"
-            button_active = "#1d4ed8"
+            bg = "#fafaf9"
+            surface = "#ffffff"
+            surface_2 = "#f5f5f4"
+            hairline = "#e7e5e4"
+            fg = "#1c1917"
+            muted = "#78716c"
+            dim = "#a8a29e"
+            field_bg = "#fafaf9"
+            tree_head = "#f5f5f4"
+            row_a = "#ffffff"
+            row_b = "#fafaf9"
+            select_bg = "#292524"
+            select_fg = "#fafaf9"
+            primary_bg = "#1c1917"
+            primary_fg = "#fafaf9"
+            primary_hover = "#44403c"
+            ghost_hi = "#f5f5f4"
 
         self.configure(bg=bg)
 
         try:
-            hwnd = ctypes.windll.user32.GetParent(self.winfo_id())
+            hwnd = ctypes.windll.user32.GetParent(int(self.winfo_id()))
             dark_title_bar = ctypes.c_int(1 if mode == "dark" else 0)
             ctypes.windll.dwmapi.DwmSetWindowAttribute(
                 hwnd,
@@ -230,65 +253,83 @@ class FacultyTimeApp(tk.Tk):
         style.configure(".", background=bg, foreground=fg, font=("Segoe UI", 10))
 
         style.configure("App.TFrame", background=bg)
-        style.configure("Card.TFrame", background=card_bg)
+        style.configure("Card.TFrame", background=surface)
 
         style.configure(
-            "Title.TLabel",
+            "Eyebrow.TLabel",
+            background=bg,
+            foreground=dim,
+            font=("Segoe UI", 8),
+        )
+        style.configure(
+            "Hero.TLabel",
             background=bg,
             foreground=fg,
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", 22),
         )
-
         style.configure(
-            "Subtle.TLabel",
+            "Tagline.TLabel",
+            background=bg,
+            foreground=muted,
+            font=("Segoe UI", 10),
+        )
+        style.configure(
+            "Meta.TLabel",
             background=bg,
             foreground=muted,
             font=("Segoe UI", 9),
         )
+        style.configure(
+            "Section.TLabel",
+            background=surface,
+            foreground=fg,
+            font=("Segoe UI", 11, "bold"),
+        )
+        style.configure(
+            "Field.TLabel",
+            background=surface,
+            foreground=muted,
+            font=("Segoe UI", 9),
+        )
+        style.configure(
+            "Dim.TLabel",
+            background=surface,
+            foreground=dim,
+            font=("Segoe UI", 10),
+        )
 
         style.configure(
             "Status.TLabel",
-            background=tree_head,
-            foreground=fg,
-            padding=(10, 4),
-        )
-
-        style.configure(
-            "TLabelframe",
-            background=bg,
-            foreground=fg,
-            padding=10,
-        )
-
-        style.configure(
-            "TLabelframe.Label",
-            background=bg,
+            background=surface_2,
             foreground=muted,
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 9),
+            padding=(28, 10),
         )
 
         style.configure(
-            "TEntry",
+            "TSeparator",
+            background=hairline,
+        )
+
+        style.configure(
+            "Clean.TEntry",
+            fieldbackground=field_bg,
+            foreground=fg,
+            padding=6,
+        )
+        style.configure(
+            "Clean.TSpinbox",
             fieldbackground=field_bg,
             foreground=fg,
             padding=4,
         )
-
-        style.configure(
-            "TSpinbox",
-            fieldbackground=field_bg,
-            foreground=fg,
-            padding=4,
-        )
-
         style.configure(
             "TCombobox",
             fieldbackground=field_bg,
             background=field_bg,
             foreground=fg,
-            padding=4,
+            padding=5,
         )
-
         style.map(
             "TCombobox",
             fieldbackground=[("readonly", field_bg)],
@@ -298,54 +339,73 @@ class FacultyTimeApp(tk.Tk):
         self.option_add("*TCombobox*Listbox.background", field_bg)
         self.option_add("*TCombobox*Listbox.foreground", fg)
         self.option_add("*TCombobox*Listbox.selectBackground", select_bg)
-        self.option_add("*TCombobox*Listbox.selectForeground", "#ffffff")
+        self.option_add("*TCombobox*Listbox.selectForeground", select_fg)
 
         style.configure(
             "Primary.TButton",
-            background=button_bg,
-            foreground="#ffffff",
+            background=primary_bg,
+            foreground=primary_fg,
             font=("Segoe UI", 10, "bold"),
-            padding=(14, 7),
+            padding=(20, 10),
+            borderwidth=0,
         )
-
         style.map(
             "Primary.TButton",
-            background=[("active", button_active)],
-            foreground=[("active", "#ffffff")],
+            background=[("active", primary_hover), ("pressed", primary_hover)],
+            foreground=[("active", primary_fg), ("pressed", primary_fg)],
         )
 
         style.configure(
-            "TButton",
-            padding=(10, 5),
+            "Ghost.TButton",
+            background=bg,
+            foreground=fg,
+            font=("Segoe UI", 10),
+            padding=(16, 8),
+        )
+        style.map(
+            "Ghost.TButton",
+            background=[("active", ghost_hi)],
+            foreground=[("active", fg)],
         )
 
         style.configure(
             "Treeview",
-            background=field_bg,
-            fieldbackground=field_bg,
+            background=row_a,
+            fieldbackground=row_a,
             foreground=fg,
-            rowheight=30,
+            rowheight=34,
             borderwidth=0,
             font=("Segoe UI", 10),
         )
-
         style.configure(
             "Treeview.Heading",
             background=tree_head,
-            foreground=fg,
-            font=("Segoe UI", 10, "bold"),
-            padding=(8, 8),
+            foreground=muted,
+            font=("Segoe UI", 9, "bold"),
+            padding=(10, 10),
+            borderwidth=0,
         )
-
         style.map(
             "Treeview",
             background=[("selected", select_bg)],
-            foreground=[("selected", "#ffffff")],
+            foreground=[("selected", select_fg)],
+        )
+
+        style.configure(
+            "TScrollbar",
+            background=surface_2,
+            troughcolor=bg,
+            borderwidth=0,
+            arrowsize=12,
+        )
+        style.map(
+            "TScrollbar",
+            background=[("active", hairline), ("pressed", hairline)],
         )
 
         if hasattr(self, "_tree"):
-            self._tree.tag_configure("oddrow", background=row_odd, foreground=fg)
-            self._tree.tag_configure("evenrow", background=row_even, foreground=fg)
+            self._tree.tag_configure("oddrow", background=row_a, foreground=fg)
+            self._tree.tag_configure("evenrow", background=row_b, foreground=fg)
 
         self.update()
 
@@ -361,8 +421,8 @@ class FacultyTimeApp(tk.Tk):
             self._schedules = load_busy_csv(path)
             self._csv_path = path
             n = len(self._schedules)
-            self._path_var.set(f"Loaded: {path.name}")
-            self._status.set(f"Loaded {n} student(s). Click Suggest office hours.")
+            self._path_var.set(f"{path.name} · {n} student{'s' if n != 1 else ''}")
+            self._status.set(f"Ready — click Suggest office hours.")
         except (OSError, ValueError) as e:
             messagebox.showerror("Could not load CSV", str(e))
             self._schedules = None
@@ -377,17 +437,8 @@ class FacultyTimeApp(tk.Tk):
 
     def _run_suggest(self) -> None:
         if not self._schedules:
-            should_open = messagebox.askyesno(
-                "No data",
-                "No file loaded. Would you like to open a CSV file now?"
-            )
-
-            if should_open:
-                self._open_csv()
-
-            if not self._schedules:
-                return
-
+            messagebox.showinfo("No data", "Open a CSV file first.")
+            return
         try:
             slot_len = int(self._duration.get())
             step = int(self._step.get())
@@ -398,9 +449,8 @@ class FacultyTimeApp(tk.Tk):
             return
 
         self._tree.delete(*self._tree.get_children())
-
         try:
-            ranked = rank_office_hour_slots(
+            ranked = rank_office_hour_slots_decision_tree(
                 self._schedules,
                 day_start_min=day_start,
                 day_end_min=day_end,
@@ -413,15 +463,9 @@ class FacultyTimeApp(tk.Tk):
             return
 
         total = len(self._schedules)
-
         for i, r in enumerate(ranked, start=1):
             day = WEEKDAY_NAMES[r.weekday]
-
-            if i % 2 == 0:
-                row_tag = "evenrow"
-            else:
-                row_tag = "oddrow"
-
+            row_tag = "evenrow" if i % 2 == 0 else "oddrow"
             self._tree.insert(
                 "",
                 tk.END,
@@ -434,9 +478,8 @@ class FacultyTimeApp(tk.Tk):
                 ),
                 tags=(row_tag,),
             )
-
         self._status.set(
-            f"Top {len(ranked)} slot(s) by student coverage (of {total} students)."
+            f"Top {len(ranked)} slot(s) by decision-tree coverage · {total} students in file."
         )
 
 
